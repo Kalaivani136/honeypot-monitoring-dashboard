@@ -20,12 +20,12 @@ function Dashboard() {
     try {
       // Get statistics
       const statsResponse = await fetch(
-        "http://127.0.0.1:5000/api/statistics"
+        "https://honeypot-monitoring-dashboard.onrender.com/api/statistics"
       );
 
       // Get attack events
       const eventsResponse = await fetch(
-        "http://127.0.0.1:5000/api/events"
+        "https://honeypot-monitoring-dashboard.onrender.com/api/events"
       );
 
       if (!statsResponse.ok || !eventsResponse.ok) {
