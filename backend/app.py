@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+import os
 
 from database import (
     init_db,
@@ -43,35 +44,13 @@ def statistics():
     return jsonify(get_statistics())
 
 
-
 @app.route("/api/events/generate", methods=["POST"])
 def generate():
     data = request.get_json(silent=True) or {}
 
     source_ip = data.get("source_ip", "127.0.0.1")
-    username = data.get("username", "unknown")
-    password = data.get("password", "")
-
-    event = generate_event(
-        source_ip=source_ip,
-        username=username,
-        password=password
-    )
-
-    return jsonify({
-        "message": "Unauthorized login attempt recorded",
-        "event": event
-    })
-
-    username = data.get(
-        "username",
-        "admin"
-    )
-
-    password = data.get(
-        "password",
-        "admin123"
-    )
+    username = data.get("username", "admin")
+    password = data.get("password", "admin123")
 
     event = generate_event(
         source_ip=source_ip,
@@ -86,13 +65,12 @@ def generate():
 
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
 
-    print(
-        "Starting Honeypot Monitoring Dashboard..."
-    )
+    print("Starting Honeypot Monitoring Dashboard...")
 
     app.run(
-        host="127.0.0.1",
-        port=5000,
-        debug=True
+        host="0.0.0.0",
+        port=port,
+        debug=False
     )
