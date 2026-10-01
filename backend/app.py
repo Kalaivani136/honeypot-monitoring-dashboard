@@ -14,12 +14,18 @@ from honeypot import generate_event
 
 app = Flask(__name__)
 
+# Allow frontend to connect
 CORS(app)
 
+# Initialize database
 init_db()
 
 
-@app.route("/")
+# ============================================================
+# HOME
+# ============================================================
+
+@app.route("/", methods=["GET"])
 def home():
     return jsonify({
         "message": "Honeypot Unauthorized Login Monitoring API",
@@ -27,10 +33,18 @@ def home():
     })
 
 
+# ============================================================
+# GET ALL EVENTS
+# ============================================================
+
 @app.route("/api/events", methods=["GET"])
 def events():
     return jsonify(get_events())
 
+
+# ============================================================
+# EVENT COUNT
+# ============================================================
 
 @app.route("/api/events/count", methods=["GET"])
 def event_count():
@@ -39,18 +53,37 @@ def event_count():
     })
 
 
+# ============================================================
+# STATISTICS
+# ============================================================
+
 @app.route("/api/statistics", methods=["GET"])
 def statistics():
     return jsonify(get_statistics())
 
 
+# ============================================================
+# GENERATE ATTACK / FAKE LOGIN
+# ============================================================
+
 @app.route("/api/events/generate", methods=["POST"])
 def generate():
     data = request.get_json(silent=True) or {}
 
-    source_ip = data.get("source_ip", "127.0.0.1")
-    username = data.get("username", "admin")
-    password = data.get("password", "admin123")
+    source_ip = data.get(
+        "source_ip",
+        "127.0.0.1"
+    )
+
+    username = data.get(
+        "username",
+        "attacker"
+    )
+
+    password = data.get(
+        "password",
+        "wrong123"
+    )
 
     event = generate_event(
         source_ip=source_ip,
@@ -64,10 +97,20 @@ def generate():
     })
 
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+# ============================================================
+# START SERVER
+# ============================================================
 
-    print("Starting Honeypot Monitoring Dashboard...")
+if __name__ == "__main__":
+
+    port = int(
+        os.environ.get("PORT", 5000)
+    )
+
+    print("==========================================")
+    print("🍯 HONEYPOT MONITORING API")
+    print("==========================================")
+    print(f"Running on port: {port}")
 
     app.run(
         host="0.0.0.0",

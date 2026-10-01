@@ -2,6 +2,9 @@ import React, { useEffect, useState } from "react";
 import AttackChart from "./AttackChart";
 import AttackTrendChart from "./AttackTrendChart";
 
+const API_URL =
+  "https://honeypot-monitoring-dashboard.onrender.com";
+
 function Dashboard() {
   const [statistics, setStatistics] = useState({});
   const [events, setEvents] = useState([]);
@@ -10,22 +13,22 @@ function Dashboard() {
   const [severityFilter, setSeverityFilter] = useState("All");
 
   const [alert, setAlert] = useState("");
-  const [lastEventCount, setLastEventCount] = useState(0);
+  const [lastEventId, setLastEventId] = useState(null);
 
   // =========================================================
-  // LOAD DATA FROM FLASK BACKEND
+  // LOAD DATA FROM LIVE FLASK BACKEND
   // =========================================================
 
   const loadData = async () => {
     try {
       // Get statistics
       const statsResponse = await fetch(
-        "https://honeypot-monitoring-dashboard.onrender.com/api/statistics"
+        `${API_URL}/api/statistics`
       );
 
       // Get attack events
       const eventsResponse = await fetch(
-        "https://honeypot-monitoring-dashboard.onrender.com/api/events"
+        `${API_URL}/api/events`
       );
 
       if (!statsResponse.ok || !eventsResponse.ok) {
@@ -35,57 +38,79 @@ function Dashboard() {
       const statsData = await statsResponse.json();
       const eventsData = await eventsResponse.json();
 
-      // Make sure events is always an array
+      // Make sure events is an array
       const safeEvents = Array.isArray(eventsData)
         ? eventsData
         : [];
 
       // =====================================================
+      // SORT EVENTS
+      // Newest event first
+      // =====================================================
+
+      const sortedEvents = [...safeEvents].sort((a, b) => {
+        const timeA = new Date(
+          String(a.timestamp || "").replace(" ", "T")
+        ).getTime();
+
+        const timeB = new Date(
+          String(b.timestamp || "").replace(" ", "T")
+        ).getTime();
+
+        return timeB - timeA;
+      });
+
+      // =====================================================
       // NEW ATTACK ALERT
       // =====================================================
 
-      if (
-        safeEvents.length > lastEventCount &&
-        lastEventCount !== 0
-      ) {
-        const latestEvent = safeEvents[0];
+      if (sortedEvents.length > 0) {
+        const latestEvent = sortedEvents[0];
 
-        setAlert(
-          `🚨 New ${latestEvent.severity || "Unknown"} attack detected from ${
-            latestEvent.source_ip || "Unknown IP"
-          }`
-        );
+        if (
+          lastEventId !== null &&
+          latestEvent.id &&
+          latestEvent.id !== lastEventId
+        ) {
+          setAlert(
+            `🚨 New ${latestEvent.severity || "Unknown"} attack detected from ${
+              latestEvent.source_ip || "Unknown IP"
+            }`
+          );
 
-        setTimeout(() => {
-          setAlert("");
-        }, 5000);
+          setTimeout(() => {
+            setAlert("");
+          }, 5000);
+        }
+
+        if (latestEvent.id) {
+          setLastEventId(latestEvent.id);
+        }
       }
 
-      // Save latest data
-      setLastEventCount(safeEvents.length);
-      setStatistics(statsData || {});
-      setEvents(safeEvents);
+      // =====================================================
+      // SAVE DATA
+      // =====================================================
 
+      setStatistics(statsData || {});
+      setEvents(sortedEvents);
     } catch (error) {
       console.error("Dashboard error:", error);
     }
   };
 
   // =========================================================
-  // AUTOMATIC DASHBOARD REFRESH
+  // AUTOMATIC LIVE REFRESH
   // Checks backend every 3 seconds
   // =========================================================
 
   useEffect(() => {
-    // Load immediately
     loadData();
 
-    // Check backend every 3 seconds
     const interval = setInterval(() => {
       loadData();
     }, 3000);
 
-    // Stop checking when component is removed
     return () => {
       clearInterval(interval);
     };
@@ -160,6 +185,25 @@ function Dashboard() {
         >
           Real-time unauthorized login monitoring
         </p>
+
+        {/* LIVE STATUS */}
+
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            marginTop: "10px",
+            padding: "8px 14px",
+            borderRadius: "20px",
+            background: "#064e3b",
+            color: "#6ee7b7",
+            fontSize: "14px",
+            fontWeight: "bold",
+          }}
+        >
+          🟢 LIVE
+        </div>
       </div>
 
       {/* ===================================================

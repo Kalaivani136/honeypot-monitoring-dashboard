@@ -10,44 +10,72 @@ function AttackTrendChart({ events = [] }) {
 
     const safeEvents = Array.isArray(events) ? events : [];
 
-    // Group attacks into 5-minute intervals
+    // ==========================================
+    // GROUP ATTACKS INTO 5-MINUTE IST INTERVALS
+    // ==========================================
+
     const fiveMinuteCounts = {};
 
     safeEvents.forEach((event) => {
       if (!event || !event.timestamp) return;
 
-      const date = new Date(
-        event.timestamp.replace(" ", "T")
+      /*
+        Backend timestamp:
+
+        YYYY-MM-DD HH:MM:SS
+
+        Example:
+        2026-10-01 13:40:53
+
+        This timestamp is already IST.
+        DO NOT use new Date(timestamp)
+        because browser timezone conversion can
+        change the displayed time.
+      */
+
+      const match = event.timestamp.match(
+        /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/
       );
 
-      if (isNaN(date.getTime())) return;
+      if (!match) return;
 
-      // Round time down to nearest 5 minutes
-      const minutes = date.getMinutes();
-      const roundedMinutes =
-        Math.floor(minutes / 5) * 5;
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+      const hour = Number(match[4]);
+      const minute = Number(match[5]);
+
+      // Round down to nearest 5 minutes
+      const roundedMinutes = Math.floor(minute / 5) * 5;
 
       const key =
-        `${date.getFullYear()}-` +
-        `${String(date.getMonth() + 1).padStart(2, "0")}-` +
-        `${String(date.getDate()).padStart(2, "0")} ` +
-        `${String(date.getHours()).padStart(2, "0")}:` +
+        `${year}-${String(month).padStart(2, "0")}-` +
+        `${String(day).padStart(2, "0")} ` +
+        `${String(hour).padStart(2, "0")}:` +
         `${String(roundedMinutes).padStart(2, "0")}`;
 
       fiveMinuteCounts[key] =
         (fiveMinuteCounts[key] || 0) + 1;
     });
 
-    // Sort chronologically
+    // ==========================================
+    // SORT CHRONOLOGICALLY
+    // ==========================================
+
     const entries = Object.entries(fiveMinuteCounts)
       .sort(([a], [b]) => a.localeCompare(b))
       .slice(-10);
 
+    // ==========================================
+    // CREATE IST LABELS
+    // ==========================================
+
     const labels = entries.map(([key]) => {
       const time = key.split(" ")[1];
+
       const [hourString, minute] = time.split(":");
 
-      let hour = parseInt(hourString);
+      let hour = Number(hourString);
 
       const period = hour >= 12 ? "PM" : "AM";
 
@@ -58,11 +86,18 @@ function AttackTrendChart({ events = [] }) {
 
     const data = entries.map(([, count]) => count);
 
-    // Remove old chart
+    // ==========================================
+    // DESTROY OLD CHART
+    // ==========================================
+
     if (chartRef.current) {
       chartRef.current.destroy();
       chartRef.current = null;
     }
+
+    // ==========================================
+    // CREATE CHART
+    // ==========================================
 
     chartRef.current = new Chart(canvasRef.current, {
       type: "line",
@@ -78,14 +113,17 @@ function AttackTrendChart({ events = [] }) {
 
             borderColor: "#38bdf8",
 
-            backgroundColor:
-              "rgba(56, 189, 248, 0.15)",
+            backgroundColor: "rgba(56, 189, 248, 0.15)",
 
             borderWidth: 3,
 
             pointRadius: 5,
 
             pointHoverRadius: 7,
+
+            pointBackgroundColor: "#38bdf8",
+
+            pointBorderColor: "#38bdf8",
 
             tension: 0.3,
 
@@ -101,8 +139,26 @@ function AttackTrendChart({ events = [] }) {
 
         plugins: {
           legend: {
+            display: true,
+
             labels: {
               color: "white",
+
+              font: {
+                size: 14,
+              },
+            },
+          },
+
+          tooltip: {
+            callbacks: {
+              title: function (tooltipItems) {
+                return `${tooltipItems[0].label} IST`;
+              },
+
+              label: function (context) {
+                return ` Attacks: ${context.raw}`;
+              },
             },
           },
         },
@@ -111,42 +167,68 @@ function AttackTrendChart({ events = [] }) {
           x: {
             title: {
               display: true,
-              text: "5-Minute Interval",
+
+              text: "5-Minute Interval (IST)",
+
               color: "white",
+
+              font: {
+                size: 14,
+              },
             },
 
             ticks: {
               color: "white",
+
+              maxRotation: 0,
+
+              autoSkip: false,
             },
 
             grid: {
-              color:
-                "rgba(255,255,255,0.08)",
+              color: "rgba(255,255,255,0.08)",
             },
           },
 
           y: {
             beginAtZero: true,
 
+            suggestedMax:
+              data.length > 0
+                ? Math.max(...data, 1) + 1
+                : 2,
+
             title: {
               display: true,
+
               text: "Number of Attacks",
+
               color: "white",
+
+              font: {
+                size: 14,
+              },
             },
 
             ticks: {
               color: "white",
+
               stepSize: 1,
+
+              precision: 0,
             },
 
             grid: {
-              color:
-                "rgba(255,255,255,0.08)",
+              color: "rgba(255,255,255,0.08)",
             },
           },
         },
       },
     });
+
+    // ==========================================
+    // CLEANUP
+    // ==========================================
 
     return () => {
       if (chartRef.current) {

@@ -1,11 +1,20 @@
 import random
-import time
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from database import add_event
 
 
-# Fake attacker data for safe demonstration
+# ============================================================
+# IST TIMEZONE
+# ============================================================
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+# ============================================================
+# FAKE ATTACK DATA
+# ============================================================
+
 ATTACKER_IPS = [
     "45.155.205.10",
     "103.25.67.21",
@@ -15,21 +24,26 @@ ATTACKER_IPS = [
     "172.16.0.15"
 ]
 
+
 USERNAMES = [
     "admin",
     "root",
     "administrator",
     "user",
-    "test"
+    "test",
+    "attacker"
 ]
+
 
 PASSWORDS = [
     "admin123",
     "password123",
     "123456",
     "root123",
-    "test123"
+    "test123",
+    "wrong123"
 ]
+
 
 SERVICES = [
     {
@@ -55,8 +69,20 @@ SERVICES = [
 ]
 
 
+# ============================================================
+# SEVERITY
+# ============================================================
+
 def calculate_severity(service, username):
-    if service in ["SSH", "RDP"] and username in ["admin", "root", "administrator"]:
+
+    if (
+        service in ["SSH", "RDP"]
+        and username in [
+            "admin",
+            "root",
+            "administrator"
+        ]
+    ):
         return "High"
 
     if service in ["FTP", "Telnet"]:
@@ -65,31 +91,64 @@ def calculate_severity(service, username):
     return "Low"
 
 
+# ============================================================
+# GENERATE EVENT
+# ============================================================
+
 def generate_event(
     source_ip=None,
     username=None,
     password=None
 ):
+
     service_info = random.choice(SERVICES)
 
-    source_ip = source_ip or random.choice(ATTACKER_IPS)
-    username = username or random.choice(USERNAMES)
-    password = password or random.choice(PASSWORDS)
+    source_ip = (
+        source_ip
+        or random.choice(ATTACKER_IPS)
+    )
 
-    timestamp = datetime.now().strftime(
+    username = (
+        username
+        or random.choice(USERNAMES)
+    )
+
+    password = (
+        password
+        or random.choice(PASSWORDS)
+    )
+
+
+    # ========================================================
+    # CURRENT IST TIME
+    # ========================================================
+
+    timestamp = datetime.now(IST).strftime(
         "%Y-%m-%d %H:%M:%S"
     )
+
 
     service = service_info["service"]
     port = service_info["port"]
     protocol = service_info["protocol"]
+
+
+    # ========================================================
+    # SEVERITY
+    # ========================================================
 
     severity = calculate_severity(
         service,
         username
     )
 
+
     event_type = "Unauthorized Login"
+
+
+    # ========================================================
+    # SAVE EVENT
+    # ========================================================
 
     add_event(
         timestamp,
@@ -103,6 +162,11 @@ def generate_event(
         severity
     )
 
+
+    # ========================================================
+    # EVENT OBJECT
+    # ========================================================
+
     event = {
         "timestamp": timestamp,
         "source_ip": source_ip,
@@ -115,21 +179,21 @@ def generate_event(
         "severity": severity
     }
 
-    print(
-        f"[{timestamp}] "
-        f"{source_ip} -> "
-        f"{service} | "
-        f"Username: {username} | "
-        f"Unauthorized Login | "
-        f"{severity}"
-    )
+
+    # ========================================================
+    # TERMINAL OUTPUT
+    # ========================================================
+
+    print()
+    print("=" * 60)
+    print(f"[{timestamp}] 🚨 ATTACK DETECTED")
+    print(f"Source IP : {source_ip}")
+    print(f"Username  : {username}")
+    print(f"Service   : {service}")
+    print(f"Port      : {port}")
+    print(f"Protocol  : {protocol}")
+    print(f"Severity  : {severity}")
+    print("=" * 60)
+
 
     return event
-
-if __name__ == "__main__":
-
-    print("Honeypot simulator started...")
-
-    while True:
-        generate_event()
-        time.sleep(5)
